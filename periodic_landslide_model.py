@@ -68,7 +68,7 @@ def run_model_with_periodic_landslides(scen_num, mg_name, total_time, time_step,
     Returns:
     mg_name : RasterModelGrid ; The final state of the model grid.
     """
-    
+     
     import numpy as np
     import matplotlib as mpl
     import matplotlib.pyplot as plt
@@ -95,70 +95,7 @@ def run_model_with_periodic_landslides(scen_num, mg_name, total_time, time_step,
     output_dir = f'scenario_{scen_num}_output'
     os.makedirs(output_dir, exist_ok=True)
     
-    # Initialize components
-    fr = PriorityFloodFlowRouter(
-        mg_name,
-        surface="topographic__elevation",
-        flow_metric="D8",
-        suppress_out=True,
-        depression_handler="fill",
-        accumulate_flow=True,
-        separate_hill_flow=True,
-        accumulate_flow_hill=True,
-    )
-    fr.run_one_step()
-    
-    ew = ExponentialWeatherer(
-        mg_name,
-        soil_production_maximum_rate=3e-4,
-        soil_production_decay_depth=0.44,
-    )
-    
-    ddTd = DepthDependentTaylorDiffuser(
-        mg_name,
-        soil_transport_decay_depth=0.1,
-        slope_crit=int_fric_ang,
-        nterms=2,
-        soil_transport_velocity=0.01,
-        dynamic_dt=True,
-        if_unstable="raise",
-        courant_factor=0.9
-    )
-    
-    if eroder_component == 'space':
-        eroder = SpaceLargeScaleEroder(mg_name, K_sed=sed_space_coeff, K_br=bedrock_coeff)
-    elif eroder_component == 'abrasion':
-        eroder = GravelBedrockEroder(
-            mg_name, 
-            intermittency_factor=0.01, 
-            sediment_porosity=phi,
-            number_of_sediment_classes=1,
-            plucking_coefficient=plucking_coeff, 
-            transport_coefficient=sed_gbe_coeff,
-            abrasion_coefficients=attrition_coeff,
-            bedrock_abrasion_coefficient=br_abrasion_coeff,
-            coarse_fractions_from_plucking=coarse_fractions,
-        )
-
-    hy = BedrockLandslider(
-        mg_name, 
-        angle_int_frict=int_fric_ang, 
-        threshold_slope=ls_thresh, 
-        cohesion_eff=cohesion,
-        landslides_return_time=ls_return_time,
-        landslides_on_boundary_nodes=False,
-        phi=0.3, 
-        fraction_fines_LS=0.5,
-    )
-
-    # Time loop setup
-    total_years = 0
-    grid_states = []
-    start_time = time.time()
-   
-    # Setup output directory
-    output_dir = f'scenario_{scen_num}_output'
-    os.makedirs(output_dir, exist_ok=True)
+    print(f"Running Scenario {scen_num}")
     
     # Initialize components
     fr = PriorityFloodFlowRouter(
@@ -291,65 +228,130 @@ def run_model_with_periodic_landslides(scen_num, mg_name, total_time, time_step,
     return mg_name
 
 # %% Example of how to run the model
+import os
+import time, warnings, copy
+import numpy as np
+import matplotlib as mpl
+import matplotlib.pyplot as plt
 
-mg_v32_a = read_netcdf("/Users/csdmsuser/Documents/Research/CU/GBE/Magnitude_Frequency_Experiments/grid_gbe_eq_midU.nc") 
-
-scenario_num = 32
-recurrence_interval = 'a'   # select recurrence interval
-timestep = 10               # fixed timestep to use in years
-total_time = 10000          # total simulation time in years
-
-internal_angle_of_friction = 0.85
-ls_return_time = 50
-
-dir_path = f'/Users/csdmsuser/Documents/Research/CU/GBE/Magnitude_Frequency_Experiments/scenario{scenario_num}/{recurrence_interval}/'
+dir_path = '/Users/csdmsuser/Documents/Research/CU/GBE/Magnitude_Frequency_Experiments/'
 os.chdir(dir_path)
 
-recurrence_intervals = [50, 60, 70, 80, 90, 100, 250, 500, 1000]
-if recurrence_interval == 'a':
-    interval = recurrence_intervals[0]
-elif recurrence_interval == 'b':
-    interval = recurrence_intervals[1]
-elif recurrence_interval == 'c':
-    interval = recurrence_intervals[2]
-elif recurrence_interval == 'd':
-    interval = recurrence_intervals[3]
-elif recurrence_interval == 'e':
-    interval = recurrence_intervals[4]
-elif recurrence_interval == 'f':
-    interval = recurrence_intervals[5]
-pass
+import library_smm as lib
+import metric_library as metric
+import watershed_metric_calcs as wmc
+
+# Landlab packages
+from landlab import RasterModelGrid#, HexModelGrid
+from landlab import imshowhs_grid#, imshow_grid
+from landlab.io.netcdf import write_netcdf, read_netcdf
+from landlab.components import (PriorityFloodFlowRouter,
+                                SpaceLargeScaleEroder,
+                                GravelBedrockEroder,
+                                BedrockLandslider,
+                                ExponentialWeatherer,
+                                DepthDependentTaylorDiffuser,
+                                SteepnessFinder,
+                                ChiFinder,
+                                ChannelProfiler,
+                                )
+import pickle
+import time
+from landlab.io.netcdf import read_netcdf
+# other things
+warnings.filterwarnings('ignore')
+uplift_rates = np.linspace(1e-4,1e-3,8)
+
+mg_v32_a = read_netcdf("/Users/csdmsuser/Documents/Research/CU/GBE/Magnitude_Frequency_Experiments/grid_gbe_eq_midU.nc") 
+# %% easy loop for each scenario
+recurrence_intervals = [50, 60, 70, 80, 90, 100, 110, 250, 500, 1000]
+angles_of_fric = [0.85, 0.58, 0.36]
+return_times = [1000, 100, 10]
+uplift_rates = np.linspace(1e-4,1e-3,8)
+
+scenario_num = 11  # select scenario ; 9 options
+timestep = 10      # select fixed timestep to use in years
+total_time = 20000 # select total simulation time in years
+
+# Set internal_angle_of_friction and ls_return_time based on scenario_num
+if scenario_num == 11:
+    internal_angle_of_friction=angles_of_fric[0]
+    ls_return_time=return_times[0]
+elif scenario_num == 12:
+    internal_angle_of_friction=angles_of_fric[1]
+    ls_return_time=return_times[0]
+elif scenario_num == 13:
+    internal_angle_of_friction=angles_of_fric[2]
+    ls_return_time=return_times[0]
+elif scenario_num == 21:
+    internal_angle_of_friction=angles_of_fric[0]
+    ls_return_time=return_times[1]
+elif scenario_num == 22:
+    internal_angle_of_friction=angles_of_fric[1]
+    ls_return_time=return_times[1]
+elif scenario_num == 23:
+    internal_angle_of_friction=angles_of_fric[2]
+    ls_return_time=return_times[1]
+elif scenario_num == 31:
+    internal_angle_of_friction=angles_of_fric[0]
+    ls_return_time=return_times[2]
+elif scenario_num == 32:
+    internal_angle_of_friction=angles_of_fric[1]
+    ls_return_time=return_times[2]
+elif scenario_num == 33:
+    internal_angle_of_friction=angles_of_fric[2]
+    ls_return_time=return_times[2]
+    pass
+
+# Loop through all recurrence intervals
+for recurrence_interval, interval in zip('abcdefghij', recurrence_intervals):
+    dir_path = f'/Users/csdmsuser/Documents/Research/CU/GBE/Magnitude_Frequency_Experiments/scenario{scenario_num}/{recurrence_interval}/'
+    os.makedirs(dir_path, exist_ok=True)
+    os.chdir(dir_path)
     
-# Calculate the numver of timesteps per recurrence interval
-steps_per_interval = interval // timestep
+    # Create a dictionary to store model grids
+    model_grids = {}
+    # Generate dynamic variable name for grid
+    mg_name = f"mg_v[{scenario_num}_{recurrence_interval}"
+    # Generate file path for where grid to import has been stored
+    file_path = "/Users/csdmsuser/Documents/Research/CU/GBE/Magnitude_Frequency_Experiments/grid_gbe_eq_midU.nc"
+    # Read the netcdf file and assign it to the dynamically named variable
+    model_grids[mg_name] = read_netcdf(file_path)
+      
+    # Calculate the number of timesteps per recurrence interval
+    steps_per_interval = interval // timestep
+    # Calculate total number of full recurrence intervals
+    total_steps = int(total_time/interval)
 
-# Calculate total number of full recurrence intervals
-total_steps = int(total_time/interval)
-
-mg_v32_a = run_model_with_periodic_landslides(
-    scen_num=scenario_num,
-    mg_name=mg_v32_a,
-    total_time=total_time,
-    time_step=timestep,
-    rows=100, columns=100, node_spacing=30,
-    eroder_component='abrasion',
-    uplift=uplift_rates[3],
-    bedrock_coeff=1.5e-5,
-    sed_space_coeff=1e-5,
-    plucking_coeff=3e-4,
-    sed_gbe_coeff=0.041,
-    attrition_coeff=0.005,
-    br_abrasion_coeff=0.005,
-    phi=0.1,
-    cohesion=1e4,
-    int_fric_ang=internal_angle_of_friction,
-    ls_return_time=ls_return_time,  # This is used in the BedrockLandslider component
-    ls_thresh=internal_angle_of_friction,
-    ls_recur_int=interval,  # This is the parameter for landslide recurrence
-    plotting=False,
-    plotting_interval=10,
-    new_grid=False,
-    save_plots=False,
-    output_format='pickle',
-    output_interval=timestep,
+    model_grids[mg_name] = run_model_with_periodic_landslides(
+        scen_num=scenario_num,
+        mg_name=model_grids[mg_name],
+        total_time=total_time,
+        time_step=timestep,
+        rows=100, columns=100, node_spacing=30,
+        eroder_component='abrasion',
+        uplift=uplift_rates[3],
+        bedrock_coeff=1.5e-5,
+        sed_space_coeff=1e-5,
+        plucking_coeff=3e-4,
+        sed_gbe_coeff=0.041,
+        attrition_coeff=0.005,
+        br_abrasion_coeff=0.005,
+        phi=0.1,
+        cohesion=1e4,
+        int_fric_ang=internal_angle_of_friction,
+        landslides=True,
+        ls_return_time=ls_return_time,  # This is used in the BedrockLandslider component
+        ls_thresh=internal_angle_of_friction,
+        ls_recur_int=interval,  # This is the parameter for landslide recurrence
+        plotting=False,
+        plotting_interval=10,
+        new_grid=False,
+        save_plots=False,
+        output_format='pickle',
+        output_interval=timestep
     )
+
+    print(f"Scenario {scenario_num}{recurrence_interval} complete.")
+
+print("All scenarios completed.")
