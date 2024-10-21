@@ -68,14 +68,15 @@ def run_model_with_periodic_landslides(scen_num, mg_name, total_time, time_step,
     Returns:
     mg_name : RasterModelGrid ; The final state of the model grid.
     """
-     
+    
     import numpy as np
     import matplotlib as mpl
     import matplotlib.pyplot as plt
     import matplotlib.cm as cm
     import os
+    import time
+    import pickle
     
-    # landlab things
     from landlab import RasterModelGrid, HexModelGrid
     from landlab import imshowhs_grid, imshow_grid
     from landlab.components import (PriorityFloodFlowRouter,
@@ -89,26 +90,26 @@ def run_model_with_periodic_landslides(scen_num, mg_name, total_time, time_step,
                                     ChannelProfiler,
                                     )
     from landlab.io.netcdf import write_netcdf, read_netcdf
-    import pickle
 
     # Setup output directory
     output_dir = f'scenario_{scen_num}_output'
     os.makedirs(output_dir, exist_ok=True)
     
     print(f"Running Scenario {scen_num}")
-    
+
     # Initialize components
     fr = PriorityFloodFlowRouter(
         mg_name,
         surface="topographic__elevation",
-        flow_metric="D8",
         runoff_rate=50,
+        flow_metric="D8",
         suppress_out=True,
         depression_handler="fill",
         accumulate_flow=True,
         separate_hill_flow=True,
         accumulate_flow_hill=True,
     )
+    fr.run_one_step()
     
     ew = ExponentialWeatherer(
         mg_name,
@@ -180,8 +181,21 @@ def run_model_with_periodic_landslides(scen_num, mg_name, total_time, time_step,
             if landslides:
                 hy.run_one_step(time_step)
 
+    def save_grid_state(current_time, is_landslide_year):
+        grid_states.append({
+            'time': current_time,
+            'topographic__elevation': mg_name.at_node["topographic__elevation"].copy(),
+            'soil__depth': mg_name.at_node["soil__depth"].copy(),
+            'bedrock__elevation': mg_name.at_node["bedrock__elevation"].copy(),
+            'drainage_area': mg_name.at_node["drainage_area"].copy(),
+            'topographic__steepest_slope': mg_name.at_node["topographic__steepest_slope"].copy(),
+            'is_landslide_year': is_landslide_year
+        })
+
     # Time loop
     current_time = 0
+    last_output_time = -output_interval  # Ensure we save the initial state
+
     while current_time < total_time:
         # Determine if this is a landslide year
         is_landslide_year = (current_time % ls_recur_int == 0)
@@ -192,21 +206,15 @@ def run_model_with_periodic_landslides(scen_num, mg_name, total_time, time_step,
             current_time += 1
         else:
             # Run for time_step years without landslides
-            run_time = min(time_step, ls_recur_int - (current_time % ls_recur_int))
+            run_time = min(time_step, ls_recur_int - (current_time % ls_recur_int), total_time - current_time)
             run_model_step(run_time, time_step, False)
             current_time += run_time
 
         # Save output at specified intervals
-        if current_time % output_interval == 0 or current_time >= total_time:
-            grid_states.append({
-                'time': current_time,
-                'topographic__elevation': mg_name.at_node["topographic__elevation"].copy(),
-                'soil__depth': mg_name.at_node["soil__depth"].copy(),
-                'bedrock__elevation': mg_name.at_node["bedrock__elevation"].copy(),
-                'drainage_area': mg_name.at_node["drainage_area"].copy(),
-                'topographic__steepest_slope': mg_name.at_node["topographic__steepest_slope"].copy(),
-                'is_landslide_year': is_landslide_year
-            })
+        while current_time - last_output_time >= output_interval:
+            output_time = last_output_time + output_interval
+            save_grid_state(output_time, is_landslide_year and output_time == current_time)
+            last_output_time = output_time
 
         # Update progress bar
         elapsed_time = time.time() - start_time
@@ -218,6 +226,10 @@ def run_model_with_periodic_landslides(scen_num, mg_name, total_time, time_step,
                            suffix=f'Complete. Time remaining: {time.strftime("%H:%M:%S", time.gmtime(time_remaining))}', 
                            length=50)
 
+    # Ensure the final state is saved if it wasn't captured by the loop
+    if current_time > last_output_time:
+        save_grid_state(current_time, is_landslide_year)
+
     # Save the final output file
     output_filename = f'{output_dir}/grid_states_periodic_landslides.pkl'
     with open(output_filename, 'wb') as f:
@@ -225,6 +237,7 @@ def run_model_with_periodic_landslides(scen_num, mg_name, total_time, time_step,
 
     print(f"\nSaved all grid states to {output_filename}")
     print(f"Total runtime: {time.strftime('%H:%M:%S', time.gmtime(time.time() - start_time))}")
+    print(f"Number of saved states: {len(grid_states)}")
 
     return mg_name
 
