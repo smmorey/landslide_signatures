@@ -65,8 +65,10 @@ class PeriodicLandslider(LandlabModel):
 
     def __init__(self, params={}):
         """Initialize the Model"""
+        self.DEFAULT_PARAMS = DEFAULT_PARAMS
         super().__init__(params)
 #ask susannah about model grid starts
+        # existing equilibrium landscape
         if not ("topographic__elevation" in self.grid.at_node.keys()):
             self.grid.add_zeros("topographic__elevation", at="node")
         rng = np.random.default_rng(seed=int(params["seed"]))
@@ -88,9 +90,14 @@ class PeriodicLandslider(LandlabModel):
             self.eroder = SpaceLargeScaleEroder(self.grid, **params["eroder"][eroder_type])
         self.landslider = BedrockLandslider(self.grid **params["landslider"])
         self.landslide_recur_int = params["landslider"]["landslide_return_time"] # what does this param do in the landslider?
+        # this is about stoachasticy
         self.save_interval = params[output]["save_interval"]
+        
     def update(self, dt):
         uplift = self.uplift_rate * dt # figure out whats up with time step during ls years
+        # the smallest stable timestep for landlab is 1, this is supposed to be as close to an
+        # instantaneous event as possible
+        # we want to record if things are landslide years
         self.grid.at_node["bedrock__elevation"][self.grid.core_nodes] += uplift
         self.grid.at_node["topographic__elevation"][:] = (self.gird.at_node["bedrock__elevation"] + self.grid.at_node["soil__depth"])
         self.weatherer.run_one_step()
@@ -98,6 +105,8 @@ class PeriodicLandslider(LandlabModel):
         self.flow_router.run_one_step()
         self.eroder.run_one_step(dt)
         # do we want recurrance interval to be set or stocastic?
+        # we can make that stochastic
+        
         if (self.current_time % self.landslide_recur_int == 0):
             self.landslider.run_one_step(dt)
         if (self.current_time % self.save_interval == 0):

@@ -1,0 +1,56 @@
+{
+        "grid": {
+            "source": "file",
+	    "grid_file_name": "grid_gbe_eq_midU.nc",
+            "create_grid": {
+                "RasterModelGrid": [
+                    (41, 5),
+                    {"xy_spacing": 5},
+                    ],
+                },
+            },
+        "clock": {"start": 0.0, "stop": 1000000, "step": 1250},
+        "output": {
+            "plot_times": [100, 100000, 1000000],
+            "save_times": [1000001],
+            "report_times": [1000001],
+            "save_path": "model_run",
+            "fields": None,
+            "plot_to_file":  True,
+            "save_interval": 10000
+            },
+        "baselevel": {
+            "uplift_rate": 0.0001,
+            },
+        "flowrouter": {"runoff_rate": 50, "flow_metric": "D8",
+                       "supress_out": True, "depression_handler": "fill",
+                       "accumulat_flow": True, "seperate_hill_flow": True,
+                       "accumulate_flow_hill": True},
+        "weatherer": {"soil_production_maximum_rate": 3e-4,
+                      "soil_production_decay_depth": 0.44},
+        "diffuser": {"soil_transport_decay_depth": 0.1,
+                      "slope_crit": 0.58,
+                      "nterms": 2,
+                      "soil_transport_velocity": 0.01,
+                      "dynamic_dt": True,
+                      "if_unstable": "raise",
+                     "courant_factor": 0.9},
+        "eroder": {"type": "abrasion",
+                   "abrasion": {"intermittency_factor": 0.01,
+                                "sediment_porosity": 0.1,
+                                "number_of_sediment_classes": 1,
+                                "transport_coefficient": 0.041,
+                                "abrasion_coefficients": 0.005,
+                                "bedrock_abrasion_coefficient": 0.005,
+                                "coarse_fractions_from_plucking": 0.05},
+                   "space": {"K_sed": 1e-5,
+                             "K_br": 1.5e-5}},
+
+        "landslider": {"angle_init_frict": 0.58,
+                       "threshold_slope": 0.58,
+                       "cohesion_eff": 1e4,
+                       "landslide_return_time": "ITERATIVE linspace {\"start\" 1, \"stop\": 100, \"num\": 10}",
+                       "landslides_on_boundary_nodes": False,
+                       "phi": 0.3,
+                       "fraction_fines_LS": 0.5}
+        }
