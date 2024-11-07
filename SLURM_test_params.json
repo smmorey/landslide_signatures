@@ -9,7 +9,7 @@
                     ],
                 },
             },
-        "clock": {"start": 0.0, "stop": 1000000, "step": 1250},
+    "runtime": {"clock": {"start": 0.0, "stop": 2e4 "step": 1250}},
         "output": {
             "plot_times": [100, 100000, 1000000],
             "save_times": [1000001],
@@ -46,10 +46,10 @@
                    "space": {"K_sed": 1e-5,
                              "K_br": 1.5e-5}},
 
-        "landslider": {"angle_init_frict": 0.58,
+    "landslider": {"angle_init_frict": "ITERATIVE linspace {\"start\": 0.36, \"stop\": 0.85, \"num\": 3}",
                        "threshold_slope": 0.58,
                        "cohesion_eff": 1e4,
-                       "landslide_return_time": "ITERATIVE linspace {\"start\" 1, \"stop\": 100, \"num\": 10}",
+                       "landslide_return_time": "ITERATIVE linspace {\"start\" 1, \"stop\": 100, \"num\": 3}",
                        "landslides_on_boundary_nodes": False,
                        "phi": 0.3,
                        "fraction_fines_LS": 0.5}
