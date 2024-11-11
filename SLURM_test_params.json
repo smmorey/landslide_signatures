@@ -23,7 +23,7 @@
             "uplift_rate": 0.0001,
             },
         "flowrouter": {"runoff_rate": 50, "flow_metric": "D8",
-                       "supress_out": True, "depression_handler": "fill",
+                       "suppress_out": True, "depression_handler": "fill",
                        "accumulat_flow": True, "seperate_hill_flow": True,
                        "accumulate_flow_hill": True},
         "weatherer": {"soil_production_maximum_rate": 3e-4,
