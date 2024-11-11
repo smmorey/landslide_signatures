@@ -6,6 +6,8 @@ from landlab.components import (PriorityFloodFlowRouter,
                                 BedrockLandslider
                                 )
 from model_base import LandlabModel
+import numpy as np
+
 class PeriodicLandslider(LandlabModel):
     DEFAULT_PARAMS = {
         "grid": {
@@ -18,6 +20,7 @@ class PeriodicLandslider(LandlabModel):
                 },
             },
         "clock": {"start": 0.0, "stop": 1000000, "step": 1250},
+        "seed": 1,
         "output": {
             "plot_times": [100, 100000, 1000000],
             "save_times": [1000001],
@@ -72,9 +75,9 @@ class PeriodicLandslider(LandlabModel):
         # existing equilibrium landscape
         if not ("topographic__elevation" in self.grid.at_node.keys()):
             self.grid.add_zeros("topographic__elevation", at="node")
-        rng = np.random.default_rng(seed=int(params["seed"]))
-        grid_noise= rng.random(self.grid.number_of_nodes)/10
-        self.grid.at_node["topographic__elevation"] += grid_noise
+            rng = np.random.default_rng(seed=int(params["seed"]))
+            grid_noise= rng.random(self.grid.number_of_nodes)/10
+            self.grid.at_node["topographic__elevation"] += grid_noise
         self.topo = self.grid.at_node["topographic__elevation"]
 
         self.uplift_rate = params["baselevel"]["uplift_rate"]

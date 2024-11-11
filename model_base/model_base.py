@@ -175,7 +175,7 @@ class LandlabModel:
             if os.path.splitext(grid_params["grid_file_name"]) == ".nc":
                 self.grid = read_netcdf(grid_params["grid_file_name"])
             else:
-                self.grid = load_grid(grid_params["grid_file_name"])
+                self.grid = load_grid(grid_params["grid_file_name"])[1]
         elif grid_params["source"] == "grid_object":
             if isinstance(grid_params["grid_object"], ModelGrid):
                 self.grid = grid_params["grid_object"]
