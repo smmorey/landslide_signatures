@@ -7,11 +7,12 @@
 #
 
 import sys
+import os
 
 import numpy as np
 from landlab import ModelGrid, create_grid, load_params
 from landlab.io.native_landlab import load_grid, save_grid
-
+from landlab.io.netcdf import read_netcdf
 
 def merge_user_and_default_params(user_params, default_params):
     """Merge default parameters into the user-parameter dictionary, adding
@@ -171,7 +172,10 @@ class LandlabModel:
         if grid_params["source"] == "create":
             self.grid = create_grid(grid_params, section="create_grid")
         elif grid_params["source"] == "file":
-            self.grid = load_grid(grid_params["grid_file_name"])
+            if os.path.splitext(grid_params["grid_file_name"]) == ".nc":
+                self.grid = read_netcdf(grid_params["grid_file_name"])
+            else:
+                self.grid = load_grid(grid_params["grid_file_name"])
         elif grid_params["source"] == "grid_object":
             if isinstance(grid_params["grid_object"], ModelGrid):
                 self.grid = grid_params["grid_object"]
