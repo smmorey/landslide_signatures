@@ -69,7 +69,6 @@ class PeriodicLandslider(LandlabModel):
 
     def __init__(self, params={}):
         """Initialize the Model"""
-        self.DEFAULT_PARAMS = DEFAULT_PARAMS
         super().__init__(params)
 #ask susannah about model grid starts
         # existing equilibrium landscape
