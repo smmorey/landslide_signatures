@@ -18,6 +18,7 @@
             "uplift_rate": 0.0005
             },
         "flowrouter": {"runoff_rate": 13, "flow_metric": "D8",
+
                        "suppress_out": true, "depression_handler": "fill",
                        "accumulate_flow": true, "separate_hill_flow": true,
                        "accumulate_flow_hill": true},
@@ -38,8 +39,8 @@
                                 "abrasion_coefficients": 0.003,
                                 "bedrock_abrasion_coefficient": 0.003,
                                 "coarse_fractions_from_plucking": 0.15},
-                   "space": {"K_sed": 1e-5,
-                             "K_br": 1.5e-5}},
+                                "space": {"K_sed": 1e-5,
+                                "K_br": 1.5e-5}},
 
     "landslider": {"angle_int_frict": "ITERATIVE linspace {\"start\": 0.36, \"stop\": 0.85, \"num\": 3}",
                        "cohesion_eff": 1e4,

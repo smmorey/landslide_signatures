@@ -2,10 +2,12 @@ from landlab.components import (PriorityFloodFlowRouter,
                                 ExponentialWeatherer,
                                 DepthDependentTaylorDiffuser,
                                 SpaceLargeScaleEroder,
-                                GravelBedrockEroder,
                                 BedrockLandslider
                                 )
 from model_base import LandlabModel
+from gravel_bedrock_eroder import GravelBedrockEroder
+import numpy as np
+
 class PeriodicLandslider(LandlabModel):
     DEFAULT_PARAMS = {
         "grid": {
@@ -18,6 +20,7 @@ class PeriodicLandslider(LandlabModel):
                 },
             },
         "clock": {"start": 0.0, "stop": 1000000, "step": 1250},
+        "seed": 1,
         "output": {
             "plot_times": [100, 100000, 1000000],
             "save_times": [1000001],
@@ -31,8 +34,8 @@ class PeriodicLandslider(LandlabModel):
             "uplift_rate": 0.0001,
             },
         "flowrouter": {"runoff_rate": 13, "flow_metric": "D8",
-                       "supress_out": True, "depression_handler": "fill",
-                       "accumulat_flow": True, "seperate_hill_flow": True,
+                       "suppress_out": True, "depression_handler": "fill",
+                       "accumulate_flow": True, "separate_hill_flow": True,
                        "accumulate_flow_hill": True},
         "weatherer": {"soil_production_maximum_rate": 3e-4,
                       "soil_production_decay_depth": 0.44},
@@ -46,7 +49,7 @@ class PeriodicLandslider(LandlabModel):
         "eroder": {"type": "abrasion",
                    "abrasion": {"intermittency_factor": 0.01,
                                 "sediment_porosity": 0.1,
-                                "plucking_rate": 5e-5,
+                                #"plucking_coefficient‎": 5e-5,
                                 "number_of_sediment_classes": 1,
                                 "transport_coefficient": 0.041,
                                 "abrasion_coefficients": 4e-3,
@@ -55,10 +58,10 @@ class PeriodicLandslider(LandlabModel):
                    "space": {"K_sed": 1e-5,
                              "K_br": 1.5e-5}},
 
-        "landslider": {"angle_init_frict": 0.58,
+        "landslider": {"angle_int_frict": 0.58,
                        "threshold_slope": 0.58,
                        "cohesion_eff": 1e4,
-                       "landslide_return_time": 100,
+                       "landslides_return_time": 100,
                        "landslides_on_boundary_nodes": False,
                        "phi": 0.3,
                        "fraction_fines_LS": 0.5}
@@ -68,11 +71,16 @@ class PeriodicLandslider(LandlabModel):
         """Initialize the Model"""
         super().__init__(params)
 #ask susannah about model grid starts
+        # existing equilibrium landscape
         if not ("topographic__elevation" in self.grid.at_node.keys()):
             self.grid.add_zeros("topographic__elevation", at="node")
-        rng = np.random.default_rng(seed=int(params["seed"]))
-        grid_noise= rng.random(self.grid.number_of_nodes)/10
-        self.grid.at_node["topographic__elevation"] += grid_noise
+            rng = np.random.default_rng(seed=int(params["seed"]))
+            grid_noise= rng.random(self.grid.number_of_nodes)/10
+            self.grid.at_node["topographic__elevation"] += grid_noise
+        if not ("soil__depth" in self.grid.at_node.keys()):
+            self.grid.add_zeros("soil_depth", at="node")
+        if not ("soil_production__date" in self.grid.at_node.keys()):
+            self.grid.add_ones("soil_production__rate", at="node")
         self.topo = self.grid.at_node["topographic__elevation"]
 
         self.uplift_rate = params["baselevel"]["uplift_rate"]
@@ -87,21 +95,28 @@ class PeriodicLandslider(LandlabModel):
             self.eroder = GravelBedrockEroder(self.grid, **params["eroder"][eroder_type])
         elif eroder_type == "space":
             self.eroder = SpaceLargeScaleEroder(self.grid, **params["eroder"][eroder_type])
-        self.landslider = BedrockLandslider(self.grid **params["landslider"])
-        self.landslide_recur_int = params["landslider"]["landslide_return_time"] # what does this param do in the landslider?
-        self.save_interval = params[output]["save_interval"]
+        self.landslider = BedrockLandslider(self.grid, **params["landslider"])
+        self.landslide_recur_int = params["landslider"]["landslides_return_time"] # what does this param do in the landslider?
+        # this is about stoachasticy
+        self.save_interval = params["output"]["save_interval"]
+        
     def update(self, dt):
         uplift = self.uplift_rate * dt # figure out whats up with time step during ls years
+        # the smallest stable timestep for landlab is 1, this is supposed to be as close to an
+        # instantaneous event as possible
+        # we want to record if things are landslide years
         self.grid.at_node["bedrock__elevation"][self.grid.core_nodes] += uplift
-        self.grid.at_node["topographic__elevation"][:] = (self.gird.at_node["bedrock__elevation"] + self.grid.at_node["soil__depth"])
+        self.grid.at_node["topographic__elevation"][:] = (self.grid.at_node["bedrock__elevation"] + self.grid.at_node["soil__depth"])
         self.weatherer.run_one_step()
         self.diffuser.run_one_step(dt)
         self.flow_router.run_one_step()
         self.eroder.run_one_step(dt)
         # do we want recurrance interval to be set or stocastic?
+        # we can make that stochastic
+        
         if (self.current_time % self.landslide_recur_int == 0):
             self.landslider.run_one_step(dt)
-        if (self.current_time % self.save_interval == 0):
+        if (self.current_time+1 % self.save_interval == 0):
             self.grid.add_field(f"t{self.current_time}_topographic__elevation",
                                 self.grid.at_node["topographic__elevation"], at="node", copy=True)
             
