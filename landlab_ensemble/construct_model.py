@@ -166,7 +166,7 @@ def make_and_run_model(model_class, batch_id, model_run_id, param_dict, out_dir)
     model.run()
     end_time = time.time()
     output_f = "%s%s.nc" % (out_dir, model.run_id)
-    model.grid.save(output_f)
+    model.grid.save(output_f, names=model.grid_fields_to_save)
     outputs = model.get_output()
     outputs['model_batch_id'] = model.batch_id
     outputs['model_run_id'] = model.run_id

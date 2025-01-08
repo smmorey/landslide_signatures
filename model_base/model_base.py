@@ -201,6 +201,7 @@ class LandlabModel:
         """
         op_params = params["output"]
         clock_params = params["clock"]
+        self.grid_fields_to_save = params["grid_fields_to_save"]
 
         self.plot_times, self.next_plot = _get_pause_time_list_and_next(
             op_params["plot_times"], clock_params
@@ -240,6 +241,7 @@ class LandlabModel:
             self.steady_state_threshold = steady_state_params['steady_state_threshold']
             self.steady_state_interval = steady_state_params['steady_state_interval']
         except KeyError:
+            self.check_steady_state = False
             self.steady_state = False
             self.steady_state_interval = self.run_duration
         self.steady_state_ammount = -1
@@ -297,7 +299,7 @@ class LandlabModel:
         if dt is None:
             dt = self.dt
         out_of_time = get_out_of_time_function(run_duration, self.current_time)
-        while not out_of_time(self.current_time) and not self.steady_state:
+        while not self.check_steady_state and out_of_time(self.current_time) and not self.steady_state:
             next_pause = self.current_time + self.steady_state_interval
             self.update_until(next_pause, dt)
             self.check_if_steady_state()
