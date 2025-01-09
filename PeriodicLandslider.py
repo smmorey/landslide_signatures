@@ -80,6 +80,9 @@ class PeriodicLandslider(LandlabModel):
             self.grid.add_zeros("soil__depth", at="node")
         if not ("soil_production__date" in self.grid.at_node.keys()):
             self.grid.add_ones("soil_production__rate", at="node")
+        if not ("bedrock__elevation" in self.grid.at_node.keys()):
+            self.grid.add_zeros("bedrock__elevation", at="node")
+            self.grid.at_node["bedrock__elevation"] += self.grid.at_node["topographic__elevation"]
         self.topo = self.grid.at_node["topographic__elevation"]
 
         self.uplift_rate = params["baselevel"]["uplift_rate"]
