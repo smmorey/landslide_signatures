@@ -6,7 +6,7 @@
             {"xy_spacing": 100}
         ]}
             },
-        "seed": "RANDOM integers {\"num\": 1, \"low\": 1, \"high\": 1000000, \"size\": [3]}",
+        "seed": "RANDOM integers {\"low\": 1, \"high\": 1000000, \"size\": [3]}",
     "runtime": {"clock": {"start": 0.0, "stop": 6e4, "step": 1250}},
         "output": {
             "plot_times": [100, 100000, 1000000],
