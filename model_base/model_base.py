@@ -298,6 +298,7 @@ class LandlabModel:
             run_duration = self.run_duration
         if dt is None:
             dt = self.dt
+        self.update_until(run_duration, dt)
         out_of_time = get_out_of_time_function(run_duration, self.current_time)
         while not self.check_steady_state and out_of_time(self.current_time) and not self.steady_state:
             next_pause = self.current_time + self.steady_state_interval
