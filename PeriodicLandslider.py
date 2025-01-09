@@ -59,7 +59,6 @@ class PeriodicLandslider(LandlabModel):
                              "K_br": 1.5e-5}},
 
         "landslider": {"angle_int_frict": 0.58,
-                       "threshold_slope": 0.58,
                        "cohesion_eff": 1e4,
                        "landslides_return_time": 100,
                        "landslides_on_boundary_nodes": False,
