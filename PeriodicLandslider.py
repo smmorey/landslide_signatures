@@ -77,7 +77,7 @@ class PeriodicLandslider(LandlabModel):
             grid_noise= rng.random(self.grid.number_of_nodes)/10
             self.grid.at_node["topographic__elevation"] += grid_noise
         if not ("soil__depth" in self.grid.at_node.keys()):
-            self.grid.add_zeros("soil_depth", at="node")
+            self.grid.add_zeros("soil__depth", at="node")
         if not ("soil_production__date" in self.grid.at_node.keys()):
             self.grid.add_ones("soil_production__rate", at="node")
         self.topo = self.grid.at_node["topographic__elevation"]
