@@ -163,7 +163,9 @@ def make_and_run_model(model_class, batch_id, model_run_id, param_dict, out_dir)
     model = model_class(param_dict)
     model.batch_id = batch_id
     model.run_id = model_run_id
+    print(model.current_time)
     model.run()
+    print(model.current_time)
     end_time = time.time()
     output_f = "%s%s.nc" % (out_dir, model.run_id)
     model.grid.save(output_f, names=model.grid_fields_to_save)
