@@ -175,6 +175,7 @@ def make_and_run_model(model_class, batch_id, model_run_id, param_dict, out_dir)
 
 def run_model(database, model_class, batch_id, run_param_id, output_dir):
     connection = sqlite3.connect(database)
+    connection.execute("PRAGMA journal_mode=WAL;")
     cursor = connection.cursor()
     outputs = cursor.execute("SELECT * FROM model_run_outputs")
     valid_output_names = [d[0] for d in outputs.description]
@@ -186,21 +187,33 @@ def run_model(database, model_class, batch_id, run_param_id, output_dir):
     param_dict = row_to_params(model_parameters, columns, parameter_types)
     model_run_id = str(uuid.uuid4())
     start_time = time.time()
-    update_statement = "UPDATE model_run_params SET model_batch_id = \"%s\", model_run_id = \"%s\" WHERE run_param_id = %s" % (batch_id, model_run_id, run_param_id)
-    cursor.execute(update_statement)
-    metadata_insert_statement = "INSERT INTO model_run_metadata (model_run_id, model_batch_id, model_start_time) VALUES (\"%s\", \"%s\", %f)" % (model_run_id, batch_id, start_time)
-    cursor.execute(metadata_insert_statement)
-    connection.commit()
-    outputs = make_and_run_model(model_class, batch_id, model_run_id, param_dict, output_dir)
-    metadata_update_statement = "UPDATE model_run_metadata SET model_end_time = %f WHERE model_run_id = \"%s\"" %(outputs['end_time'], outputs['model_run_id'])
-    cursor.execute(metadata_update_statement)
-    valid_outputs = {key: outputs[key] for key in outputs.keys() if key in valid_output_names}
-    columns = str(tuple(valid_outputs.keys()))
-    values = str(tuple(valid_outputs.values()))
-    query_str = "INSERT INTO model_run_outputs %s VALUES %s;" % (columns, values)
-    cursor.execute(query_str)
-    connection.commit()
-    cursor.close()
+    retries = 5
+    for attmept in range(retries):
+        try:
+            update_statement = "UPDATE model_run_params SET model_batch_id = \"%s\", model_run_id = \"%s\" WHERE run_param_id = %s" % (batch_id, model_run_id, run_param_id)
+            cursor.execute(update_statement)
+            metadata_insert_statement = "INSERT INTO model_run_metadata (model_run_id, model_batch_id, model_start_time) VALUES (\"%s\", \"%s\", %f)" % (model_run_id, batch_id, start_time)
+            cursor.execute(metadata_insert_statement)
+            connection.commit()
+            outputs = make_and_run_model(model_class, batch_id, model_run_id, param_dict, output_dir)
+            metadata_update_statement = "UPDATE model_run_metadata SET model_end_time = %f WHERE model_run_id = \"%s\"" %(outputs['end_time'], outputs['model_run_id'])
+            cursor.execute(metadata_update_statement)
+            valid_outputs = {key: outputs[key] for key in outputs.keys() if key in valid_output_names}
+            columns = str(tuple(valid_outputs.keys()))
+            values = str(tuple(valid_outputs.values()))
+            query_str = "INSERT INTO model_run_outputs %s VALUES %s;" % (columns, values)
+            cursor.execute(query_str)
+        except sqlite3.OperationalError as e:
+            if "database is locked" in str(e):
+                time.sleep(2 ** attempt)
+            else:
+                raise e
+        finally:
+            connection.commit()
+            cursor.close()
+    if attempt == retries-1:
+        print("Database is locked, could not write to database.")  
+            
 
 def generate_config_file_for_slurm(database, model, output_directory, number_of_runs=100, filter=None, filename="slurm_runs.csv", checkout_models=False):
     selector = ModelSelector(database, filter)
